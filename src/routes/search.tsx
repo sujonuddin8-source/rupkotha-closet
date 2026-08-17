@@ -10,7 +10,7 @@ import { CATEGORIES, toBn, type CategorySlug } from "@/lib/types";
 
 export const Route = createFileRoute("/search")({
   validateSearch: (search: Record<string, unknown>) => ({
-    q: typeof search.q === "string" ? search.q : "",
+    q: typeof search["q"] === "string" ? (search["q"] as string) : "",
   }),
   head: () => ({
     meta: [
