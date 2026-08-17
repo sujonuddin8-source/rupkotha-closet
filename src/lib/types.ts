@@ -73,7 +73,7 @@ export const DELIVERY_FEE = { inside: 60, outside: 120 } as const;
 const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
 
 export function toBn(value: number | string): string {
-  return String(value).replace(/\d/g, (d) => BN_DIGITS[Number(d)]);
+  return String(value).replace(/\d/g, (d) => BN_DIGITS[Number(d)] ?? d);
 }
 
 export function bdt(value: number): string {
