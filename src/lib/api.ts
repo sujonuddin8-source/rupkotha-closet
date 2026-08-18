@@ -158,7 +158,7 @@ export async function createOrder(input: {
     })),
   });
   if (error) throw new Error(error.message);
-  return data as string;
+  return String(data);
 }
 
 /** Customer order tracking by order code — returns non-sensitive fields only. */
