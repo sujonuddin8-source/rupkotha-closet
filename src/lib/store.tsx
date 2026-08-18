@@ -7,17 +7,28 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { PRODUCTS } from "./products";
+import {
+  createOrder,
+  fetchOrders,
+  fetchProducts,
+  removeProduct,
+  saveProduct,
+  updateOrderStatus,
+} from "./api";
 import { DELIVERY_FEE, type CartItem, type Order, type OrderStatus, type Product } from "./types";
 
 const CART_KEY = "rupkotha_cart_v1";
-const ORDER_KEY = "rupkotha_orders_v1";
-const PRODUCT_KEY = "rupkotha_products_v1";
 
 interface StoreValue {
   products: Product[];
-  cart: CartItem[];
+  productsLoading: boolean;
+  productsError: string | null;
+  refreshProducts: () => Promise<void>;
   orders: Order[];
+  ordersLoading: boolean;
+  ordersError: string | null;
+  refreshOrders: () => Promise<void>;
+  cart: CartItem[];
   hydrated: boolean;
   addToCart: (item: CartItem) => void;
   updateQuantity: (index: number, quantity: number) => void;
@@ -31,46 +42,67 @@ interface StoreValue {
     address: string;
     area: "inside" | "outside";
     note?: string;
-  }) => Order;
-  setOrderStatus: (id: string, status: OrderStatus) => void;
-  upsertProduct: (product: Product) => void;
-  deleteProduct: (id: string) => void;
+  }) => Promise<string>;
+  setOrderStatus: (id: string, status: OrderStatus) => Promise<void>;
+  upsertProduct: (product: Product) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
 
-function read<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
+function readCart(): CartItem[] {
+  if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    const raw = window.localStorage.getItem(CART_KEY);
+    return raw ? (JSON.parse(raw) as CartItem[]) : [];
   } catch {
-    return fallback;
+    return [];
   }
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [products, setProducts] = useState<Product[]>(PRODUCTS);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => {
-    setProducts(read<Product[]>(PRODUCT_KEY, PRODUCTS));
-    setCart(read<CartItem[]>(CART_KEY, []));
-    setOrders(read<Order[]>(ORDER_KEY, []));
-    setHydrated(true);
+  const refreshProducts = useCallback(async () => {
+    setProductsLoading(true);
+    try {
+      setProducts(await fetchProducts());
+      setProductsError(null);
+    } catch (e) {
+      setProductsError(e instanceof Error ? e.message : "পণ্য লোড করা যায়নি");
+    } finally {
+      setProductsLoading(false);
+    }
   }, []);
+
+  const refreshOrders = useCallback(async () => {
+    setOrdersLoading(true);
+    try {
+      setOrders(await fetchOrders());
+      setOrdersError(null);
+    } catch (e) {
+      setOrdersError(e instanceof Error ? e.message : "অর্ডার লোড করা যায়নি");
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    setCart(readCart());
+    setHydrated(true);
+    void refreshProducts();
+  }, [refreshProducts]);
 
   useEffect(() => {
     if (hydrated) window.localStorage.setItem(CART_KEY, JSON.stringify(cart));
   }, [cart, hydrated]);
-  useEffect(() => {
-    if (hydrated) window.localStorage.setItem(ORDER_KEY, JSON.stringify(orders));
-  }, [orders, hydrated]);
-  useEffect(() => {
-    if (hydrated) window.localStorage.setItem(PRODUCT_KEY, JSON.stringify(products));
-  }, [products, hydrated]);
 
   const addToCart = useCallback((item: CartItem) => {
     setCart((prev) => {
@@ -94,52 +126,49 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const clearCart = useCallback(() => setCart([]), []);
 
-  const subtotal = useMemo(
-    () => cart.reduce((sum, i) => sum + i.price * i.quantity, 0),
-    [cart],
-  );
+  const subtotal = useMemo(() => cart.reduce((sum, i) => sum + i.price * i.quantity, 0), [cart]);
   const cartCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);
 
   const placeOrder: StoreValue["placeOrder"] = useCallback(
-    (input) => {
-      const deliveryFee = DELIVERY_FEE[input.area];
-      const order: Order = {
-        id: `RF-${Date.now().toString().slice(-6)}`,
-        createdAt: new Date().toISOString(),
-        ...input,
-        items: cart,
-        subtotal,
-        deliveryFee,
-        total: subtotal + deliveryFee,
-        status: "pending",
-        paymentMethod: "cod",
-      };
-      setOrders((prev) => [order, ...prev]);
+    async (input) => {
+      const code = await createOrder({ ...input, items: cart });
       setCart([]);
-      return order;
+      return code;
     },
-    [cart, subtotal],
+    [cart],
   );
 
-  const setOrderStatus = useCallback((id: string, status: OrderStatus) => {
+  const setOrderStatus = useCallback(async (id: string, status: OrderStatus) => {
+    await updateOrderStatus(id, status);
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
   }, []);
 
-  const upsertProduct = useCallback((product: Product) => {
-    setProducts((prev) => {
-      const exists = prev.some((p) => p.id === product.id);
-      return exists ? prev.map((p) => (p.id === product.id ? product : p)) : [product, ...prev];
-    });
-  }, []);
+  const upsertProduct = useCallback(
+    async (product: Product) => {
+      await saveProduct(product);
+      setProducts((prev) => {
+        const exists = prev.some((p) => p.id === product.id);
+        return exists ? prev.map((p) => (p.id === product.id ? product : p)) : [product, ...prev];
+      });
+    },
+    [],
+  );
 
-  const deleteProduct = useCallback((id: string) => {
+  const deleteProduct = useCallback(async (id: string) => {
+    await removeProduct(id);
     setProducts((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
   const value: StoreValue = {
     products,
-    cart,
+    productsLoading,
+    productsError,
+    refreshProducts,
     orders,
+    ordersLoading,
+    ordersError,
+    refreshOrders,
+    cart,
     hydrated,
     addToCart,
     updateQuantity,
@@ -161,3 +190,5 @@ export function useStore() {
   if (!ctx) throw new Error("useStore must be used within StoreProvider");
   return ctx;
 }
+
+export { DELIVERY_FEE };
