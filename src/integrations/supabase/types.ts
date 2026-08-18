@@ -14,16 +14,225 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      order_items: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          image: string
+          name: string
+          order_id: string
+          price: number
+          product_id: string | null
+          quantity: number
+          size: string
+        }
+        Insert: {
+          color: string
+          created_at?: string
+          id?: string
+          image?: string
+          name: string
+          order_id: string
+          price: number
+          product_id?: string | null
+          quantity: number
+          size: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          image?: string
+          name?: string
+          order_id?: string
+          price?: number
+          product_id?: string | null
+          quantity?: number
+          size?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          address: string
+          area: string
+          created_at: string
+          customer_name: string
+          delivery_fee: number
+          id: string
+          note: string | null
+          order_code: string
+          payment_method: string
+          phone: string
+          status: Database["public"]["Enums"]["order_status"]
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          area: string
+          created_at?: string
+          customer_name: string
+          delivery_fee: number
+          id?: string
+          note?: string | null
+          order_code: string
+          payment_method?: string
+          phone: string
+          status?: Database["public"]["Enums"]["order_status"]
+          subtotal: number
+          total: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          area?: string
+          created_at?: string
+          customer_name?: string
+          delivery_fee?: number
+          id?: string
+          note?: string | null
+          order_code?: string
+          payment_method?: string
+          phone?: string
+          status?: Database["public"]["Enums"]["order_status"]
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          category: string
+          colors: string[]
+          created_at: string
+          description: string
+          featured: boolean
+          id: string
+          image: string
+          name: string
+          old_price: number | null
+          price: number
+          rating: number
+          sizes: string[]
+          stock: number
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          colors?: string[]
+          created_at?: string
+          description?: string
+          featured?: boolean
+          id: string
+          image?: string
+          name: string
+          old_price?: number | null
+          price: number
+          rating?: number
+          sizes?: string[]
+          stock?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          colors?: string[]
+          created_at?: string
+          description?: string
+          featured?: boolean
+          id?: string
+          image?: string
+          name?: string
+          old_price?: number | null
+          price?: number
+          rating?: number
+          sizes?: string[]
+          stock?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_order_public: { Args: { _order_code: string }; Returns: Json }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      place_order: {
+        Args: {
+          _address: string
+          _area: string
+          _customer_name: string
+          _items: Json
+          _note: string
+          _phone: string
+        }
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
+      order_status: "pending" | "confirmed" | "shipped" | "delivered"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +359,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+      order_status: ["pending", "confirmed", "shipped", "delivered"],
+    },
   },
 } as const
