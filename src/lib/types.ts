@@ -13,6 +13,7 @@ export interface Product {
   price: number;
   oldPrice?: number;
   image: string;
+  imageKey: string;
   description: string;
   sizes: string[];
   colors: string[];
