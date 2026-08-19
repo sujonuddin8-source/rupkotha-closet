@@ -23,7 +23,7 @@ export const Route = createFileRoute("/admin/products")({
 });
 
 function AdminProducts() {
-  const { products, upsertProduct, deleteProduct } = useStore();
+  const { products, productsLoading, productsError, upsertProduct, deleteProduct } = useStore();
   const [form, setForm] = useState({
     name: "",
     price: "",
@@ -32,7 +32,7 @@ function AdminProducts() {
     sizes: "১-২ বছর, ৩-৪ বছর",
   });
 
-  const addProduct = (e: React.FormEvent) => {
+  const addProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !Number(form.price)) {
       toast.error("নাম ও দাম দিন");
@@ -44,15 +44,20 @@ function AdminProducts() {
       category: form.category,
       price: Number(form.price),
       image: placeholder,
+      imageKey: "baby-set",
       description: "নতুন যোগ করা পণ্য।",
       sizes: form.sizes.split(",").map((s) => s.trim()).filter(Boolean),
       colors: ["ডিফল্ট"],
       stock: Number(form.stock) || 0,
       rating: 5,
     };
-    upsertProduct(product);
-    setForm({ ...form, name: "", price: "", stock: "" });
-    toast.success("পণ্য যোগ হয়েছে");
+    try {
+      await upsertProduct(product);
+      setForm({ ...form, name: "", price: "", stock: "" });
+      toast.success("পণ্য যোগ হয়েছে");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "পণ্য সংরক্ষণ করা যায়নি");
+    }
   };
 
   return (
@@ -122,6 +127,16 @@ function AdminProducts() {
       </form>
 
       <section className="space-y-4">
+        {productsLoading && (
+          <p className="rounded-3xl border border-border/70 bg-card p-8 text-center text-sm text-muted-foreground">
+            পণ্য লোড হচ্ছে...
+          </p>
+        )}
+        {productsError && (
+          <p className="rounded-3xl border border-destructive/40 bg-card p-8 text-center text-sm text-destructive">
+            {productsError}
+          </p>
+        )}
         {products.map((p) => (
           <div
             key={p.id}
@@ -151,7 +166,11 @@ function AdminProducts() {
                 inputMode="numeric"
                 className="h-9 w-20 rounded-xl"
                 value={String(p.stock)}
-                onChange={(e) => upsertProduct({ ...p, stock: Number(e.target.value) || 0 })}
+                onChange={(e) => {
+                  void upsertProduct({ ...p, stock: Number(e.target.value) || 0 }).catch((err) =>
+                    toast.error(err instanceof Error ? err.message : "স্টক আপডেট হয়নি"),
+                  );
+                }}
               />
             </div>
             <div className="flex items-center gap-2">
@@ -162,12 +181,14 @@ function AdminProducts() {
                 id={`sizes-${p.id}`}
                 className="h-9 w-56 rounded-xl"
                 value={p.sizes.join(", ")}
-                onChange={(e) =>
-                  upsertProduct({
+                onChange={(e) => {
+                  void upsertProduct({
                     ...p,
                     sizes: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
-                  })
-                }
+                  }).catch((err) =>
+                    toast.error(err instanceof Error ? err.message : "সাইজ আপডেট হয়নি"),
+                  );
+                }}
               />
             </div>
             <span className="text-xs text-muted-foreground">রেটিং {toBn(p.rating)}</span>
@@ -177,8 +198,11 @@ function AdminProducts() {
               className="text-destructive"
               aria-label="মুছুন"
               onClick={() => {
-                deleteProduct(p.id);
-                toast.success("পণ্য মুছে ফেলা হয়েছে");
+                void deleteProduct(p.id)
+                  .then(() => toast.success("পণ্য মুছে ফেলা হয়েছে"))
+                  .catch((err) =>
+                    toast.error(err instanceof Error ? err.message : "পণ্য মুছে ফেলা যায়নি"),
+                  );
               }}
             >
               <Trash2 className="size-4" />

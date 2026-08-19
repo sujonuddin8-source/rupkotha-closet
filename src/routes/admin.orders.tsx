@@ -21,7 +21,7 @@ export const Route = createFileRoute("/admin/orders")({
 const STATUSES: OrderStatus[] = ["pending", "confirmed", "shipped", "delivered"];
 
 function AdminOrders() {
-  const { orders, setOrderStatus } = useStore();
+  const { orders, ordersLoading, ordersError, setOrderStatus } = useStore();
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const list = orders.filter((o) => filter === "all" || o.status === filter);
 
@@ -51,7 +51,17 @@ function AdminOrders() {
         ))}
       </div>
 
-      {list.length === 0 ? (
+      {ordersError && (
+        <p className="rounded-3xl border border-destructive/40 bg-card p-6 text-center text-sm text-destructive">
+          {ordersError}
+        </p>
+      )}
+
+      {ordersLoading && orders.length === 0 ? (
+        <p className="rounded-3xl border border-border/70 bg-card p-10 text-center text-sm text-muted-foreground">
+          অর্ডার লোড হচ্ছে...
+        </p>
+      ) : list.length === 0 ? (
         <p className="rounded-3xl border border-border/70 bg-card p-10 text-center text-sm text-muted-foreground">
           কোনো অর্ডার নেই।
         </p>
@@ -91,8 +101,11 @@ function AdminOrders() {
                     variant={o.status === s ? "default" : "outline"}
                     className="rounded-full"
                     onClick={() => {
-                      setOrderStatus(o.id, s);
-                      toast.success(`স্ট্যাটাস: ${STATUS_LABEL[s]}`);
+                      void setOrderStatus(o.id, s)
+                        .then(() => toast.success(`স্ট্যাটাস: ${STATUS_LABEL[s]}`))
+                        .catch((err) =>
+                          toast.error(err instanceof Error ? err.message : "স্ট্যাটাস আপডেট হয়নি"),
+                        );
                     }}
                   >
                     {STATUS_LABEL[s]}
