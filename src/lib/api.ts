@@ -149,7 +149,7 @@ export async function createOrder(input: {
     _phone: input.phone,
     _address: input.address,
     _area: input.area,
-    _note: input.note ?? null,
+    _note: input.note ?? "",
     _items: input.items.map((i) => ({
       productId: i.productId,
       size: i.size,

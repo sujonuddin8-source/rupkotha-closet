@@ -26,10 +26,11 @@ export const Route = createFileRoute("/search")({
 function SearchPage() {
   const { q } = Route.useSearch();
   const navigate = useNavigate();
-  const { products } = useStore();
+  const { products, productsLoading, productsError } = useStore();
   const [term, setTerm] = useState(q);
   const [cat, setCat] = useState<CategorySlug | "all">("all");
 
+  const statusNote = productsLoading ? "পণ্য লোড হচ্ছে..." : productsError;
   const results = products.filter(
     (p) =>
       (cat === "all" || p.category === cat) &&

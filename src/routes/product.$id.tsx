@@ -25,13 +25,23 @@ export const Route = createFileRoute("/product/$id")({
 
 function ProductPage() {
   const { id } = Route.useParams();
-  const { products, addToCart } = useStore();
+  const { products, productsLoading, addToCart } = useStore();
   const navigate = useNavigate();
   const product = products.find((p) => p.id === id);
 
   const [size, setSize] = useState<string | null>(null);
   const [color, setColor] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
+
+  if (!product && productsLoading) {
+    return (
+      <StoreLayout>
+        <div className="mx-auto max-w-6xl px-4 py-24 text-center text-muted-foreground">
+          লোড হচ্ছে...
+        </div>
+      </StoreLayout>
+    );
+  }
 
   if (!product) {
     return (

@@ -26,16 +26,24 @@ function CheckoutPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ customerName: "", phone: "", address: "", note: "" });
   const [area, setArea] = useState<"inside" | "outside">("inside");
+  const [submitting, setSubmitting] = useState(false);
   const deliveryFee = DELIVERY_FEE[area];
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.customerName.trim() || !/^01\d{9}$/.test(form.phone) || !form.address.trim()) {
       toast.error("নাম, সঠিক ১১ ডিজিটের ফোন নম্বর ও ঠিকানা দিন");
       return;
     }
-    const order = placeOrder({ ...form, area });
-    navigate({ to: "/order/$id", params: { id: order.id } });
+    setSubmitting(true);
+    try {
+      const code = await placeOrder({ ...form, area });
+      navigate({ to: "/order/$id", params: { id: code } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "অর্ডার সম্পন্ন করা যায়নি, আবার চেষ্টা করুন");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (hydrated && cart.length === 0) {
