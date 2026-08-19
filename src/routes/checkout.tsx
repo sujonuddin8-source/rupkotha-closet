@@ -26,6 +26,7 @@ function CheckoutPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ customerName: "", phone: "", address: "", note: "" });
   const [area, setArea] = useState<"inside" | "outside">("inside");
+  const [submitting, setSubmitting] = useState(false);
   const deliveryFee = DELIVERY_FEE[area];
 
   const submit = async (e: React.FormEvent) => {
