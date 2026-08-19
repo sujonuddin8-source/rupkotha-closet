@@ -103,6 +103,15 @@ function Index() {
 
       <section className="mx-auto max-w-6xl px-4 py-12">
         <h2 className="mb-6 text-xl font-bold">নতুন এসেছে</h2>
+        {productsLoading && (
+          <p className="py-8 text-center text-sm text-muted-foreground">পণ্য লোড হচ্ছে...</p>
+        )}
+        {productsError && (
+          <p className="py-8 text-center text-sm text-destructive">{productsError}</p>
+        )}
+        {!productsLoading && !productsError && latest.length === 0 && (
+          <p className="py-8 text-center text-sm text-muted-foreground">এখনো কোনো পণ্য নেই।</p>
+        )}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {latest.map((p) => (
             <ProductCard key={p.id} product={p} />

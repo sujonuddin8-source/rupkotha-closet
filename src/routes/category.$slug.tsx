@@ -33,7 +33,7 @@ type SortKey = "new" | "low" | "high";
 
 function CategoryPage() {
   const { category } = Route.useLoaderData();
-  const { products } = useStore();
+  const { products, productsLoading, productsError } = useStore();
   const [sort, setSort] = useState<SortKey>("new");
 
   const list = products
@@ -46,7 +46,10 @@ function CategoryPage() {
         <h1 className="text-2xl font-bold">
           {category.emoji} {category.name}দের পোশাক
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{list.length} টি পণ্য পাওয়া গেছে</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {productsLoading ? "পণ্য লোড হচ্ছে..." : `${list.length} টি পণ্য পাওয়া গেছে`}
+        </p>
+        {productsError && <p className="mt-2 text-sm text-destructive">{productsError}</p>}
 
         <div className="mt-6 flex flex-wrap gap-2">
           {(

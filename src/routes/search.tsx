@@ -26,7 +26,7 @@ export const Route = createFileRoute("/search")({
 function SearchPage() {
   const { q } = Route.useSearch();
   const navigate = useNavigate();
-  const { products } = useStore();
+  const { products, productsLoading, productsError } = useStore();
   const [term, setTerm] = useState(q);
   const [cat, setCat] = useState<CategorySlug | "all">("all");
 
