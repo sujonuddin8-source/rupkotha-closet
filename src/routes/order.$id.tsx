@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { StoreLayout } from "@/components/StoreLayout";
 import { Button } from "@/components/ui/button";
-import { useStore } from "@/lib/store";
+import { fetchOrderByCode } from "@/lib/api";
+import type { Order } from "@/lib/types";
 import { AREA_LABEL, bdt, STATUS_LABEL, toBn } from "@/lib/types";
 
 export const Route = createFileRoute("/order/$id")({
@@ -20,14 +22,50 @@ export const Route = createFileRoute("/order/$id")({
 
 function OrderPage() {
   const { id } = Route.useParams();
-  const { orders, hydrated } = useStore();
-  const order = orders.find((o) => o.id === id);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!hydrated) {
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    fetchOrderByCode(id)
+      .then((o) => {
+        if (!active) return;
+        setOrder(o);
+        setError(null);
+      })
+      .catch((e: unknown) => {
+        if (!active) return;
+        setError(e instanceof Error ? e.message : "অর্ডার লোড করা যায়নি");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (loading) {
     return (
       <StoreLayout>
         <div className="mx-auto max-w-3xl px-4 py-24 text-center text-muted-foreground">
           লোড হচ্ছে...
+        </div>
+      </StoreLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <StoreLayout>
+        <div className="mx-auto max-w-3xl px-4 py-24 text-center">
+          <h1 className="text-xl font-bold text-destructive">অর্ডার লোড করা যায়নি</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+          <Button className="mt-6 rounded-full" onClick={() => window.location.reload()}>
+            আবার চেষ্টা করুন
+          </Button>
         </div>
       </StoreLayout>
     );

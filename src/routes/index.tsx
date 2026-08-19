@@ -27,7 +27,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { products } = useStore();
+  const { products, productsLoading, productsError } = useStore();
   const featured = products.filter((p) => p.featured).slice(0, 8);
   const latest = products.slice(0, 8);
 
