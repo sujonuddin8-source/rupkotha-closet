@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      bd_locations: {
+        Row: {
+          district: string
+          id: string
+          upazila: string
+        }
+        Insert: {
+          district: string
+          id?: string
+          upazila: string
+        }
+        Update: {
+          district?: string
+          id?: string
+          upazila?: string
+        }
+        Relationships: []
+      }
       coupon_redemptions: {
         Row: {
           amount: number
@@ -448,7 +466,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_order: {
+        Args: { _order_code: string; _phone: string; _reason: string }
+        Returns: Json
+      }
+      get_my_orders: { Args: never; Returns: Json }
       get_order_public: { Args: { _order_code: string }; Returns: Json }
+      get_order_tracking: {
+        Args: { _order_code: string; _phone?: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -466,6 +493,26 @@ export type Database = {
           _phone: string
         }
         Returns: string
+      }
+      place_order_v2: {
+        Args: {
+          _address_detail: string
+          _area: string
+          _coupon_code: string
+          _customer_name: string
+          _district: string
+          _items: Json
+          _note: string
+          _payment_method: string
+          _phone: string
+          _upazila: string
+          _village: string
+        }
+        Returns: string
+      }
+      validate_coupon: {
+        Args: { _code: string; _phone?: string; _subtotal: number }
+        Returns: Json
       }
     }
     Enums: {
