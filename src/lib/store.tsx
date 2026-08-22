@@ -11,13 +11,23 @@ import {
   createOrder,
   fetchOrders,
   fetchProducts,
+  fetchSettings,
   removeProduct,
   saveProduct,
   updateOrderStatus,
+  type PlaceOrderInput,
 } from "./api";
-import { DELIVERY_FEE, type CartItem, type Order, type OrderStatus, type Product } from "./types";
+import {
+  DELIVERY_FEE,
+  type CartItem,
+  type Order,
+  type OrderStatus,
+  type Product,
+  type StoreSettings,
+} from "./types";
 
 const CART_KEY = "rupkotha_cart_v1";
+const LAST_PHONE_KEY = "rupkotha_last_phone";
 
 interface StoreValue {
   products: Product[];
@@ -28,6 +38,8 @@ interface StoreValue {
   ordersLoading: boolean;
   ordersError: string | null;
   refreshOrders: () => Promise<void>;
+  settings: StoreSettings;
+  refreshSettings: () => Promise<void>;
   cart: CartItem[];
   hydrated: boolean;
   addToCart: (item: CartItem) => void;
@@ -36,13 +48,8 @@ interface StoreValue {
   clearCart: () => void;
   cartCount: number;
   subtotal: number;
-  placeOrder: (input: {
-    customerName: string;
-    phone: string;
-    address: string;
-    area: "inside" | "outside";
-    note?: string;
-  }) => Promise<string>;
+  deliveryFeeFor: (area: "inside" | "outside", subtotal: number) => number;
+  placeOrder: (input: Omit<PlaceOrderInput, "items">) => Promise<string>;
   setOrderStatus: (id: string, status: OrderStatus) => Promise<void>;
   upsertProduct: (product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
@@ -60,6 +67,24 @@ function readCart(): CartItem[] {
   }
 }
 
+/** Remember the phone used for the last order so guests can open their tracking page. */
+export function rememberPhone(phone: string) {
+  try {
+    window.localStorage.setItem(LAST_PHONE_KEY, phone);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function recalledPhone(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(LAST_PHONE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
@@ -67,6 +92,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [settings, setSettings] = useState<StoreSettings>({
+    deliveryInside: DELIVERY_FEE.inside,
+    deliveryOutside: DELIVERY_FEE.outside,
+    freeDeliveryThreshold: null,
+  });
   const [cart, setCart] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
@@ -94,11 +124,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshSettings = useCallback(async () => {
+    try {
+      setSettings(await fetchSettings());
+    } catch {
+      /* keep defaults */
+    }
+  }, []);
+
   useEffect(() => {
     setCart(readCart());
     setHydrated(true);
     void refreshProducts();
-  }, [refreshProducts]);
+    void refreshSettings();
+  }, [refreshProducts, refreshSettings]);
 
   useEffect(() => {
     if (hydrated) window.localStorage.setItem(CART_KEY, JSON.stringify(cart));
@@ -129,9 +168,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const subtotal = useMemo(() => cart.reduce((sum, i) => sum + i.price * i.quantity, 0), [cart]);
   const cartCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);
 
+  const deliveryFeeFor = useCallback(
+    (area: "inside" | "outside", amount: number) => {
+      if (settings.freeDeliveryThreshold != null && amount >= settings.freeDeliveryThreshold) {
+        return 0;
+      }
+      return area === "inside" ? settings.deliveryInside : settings.deliveryOutside;
+    },
+    [settings],
+  );
+
   const placeOrder: StoreValue["placeOrder"] = useCallback(
     async (input) => {
       const code = await createOrder({ ...input, items: cart });
+      rememberPhone(input.phone);
       setCart([]);
       return code;
     },
@@ -143,16 +193,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
   }, []);
 
-  const upsertProduct = useCallback(
-    async (product: Product) => {
-      await saveProduct(product);
-      setProducts((prev) => {
-        const exists = prev.some((p) => p.id === product.id);
-        return exists ? prev.map((p) => (p.id === product.id ? product : p)) : [product, ...prev];
-      });
-    },
-    [],
-  );
+  const upsertProduct = useCallback(async (product: Product) => {
+    await saveProduct(product);
+    setProducts((prev) => {
+      const exists = prev.some((p) => p.id === product.id);
+      return exists ? prev.map((p) => (p.id === product.id ? product : p)) : [product, ...prev];
+    });
+  }, []);
 
   const deleteProduct = useCallback(async (id: string) => {
     await removeProduct(id);
@@ -168,6 +215,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ordersLoading,
     ordersError,
     refreshOrders,
+    settings,
+    refreshSettings,
     cart,
     hydrated,
     addToCart,
@@ -176,6 +225,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     clearCart,
     cartCount,
     subtotal,
+    deliveryFeeFor,
     placeOrder,
     setOrderStatus,
     upsertProduct,
